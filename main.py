@@ -1,16 +1,27 @@
-# This is a sample Python script.
+import telebot
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+bot = telebot.TeleBot('6985946769:AAE-bKL3CdkCSAGm068r3v1dCxtowtXrahk')
 
+users = {}
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    user_id = message.from_user.id
+    if user_id in users:
+        bot.reply_to(message, f'Я тебя помню, {users[user_id]["name"]} {users[user_id]["surname"]}!')
+    else:
+        msg = bot.reply_to(message, "Привет! Как тебя зовут?")
+        bot.register_next_step_handler(msg, process_name_step)
 
+def process_name_step(message):
+    name = message.text
+    user_id = message.from_user.id
+    msg = bot.reply_to(message, 'Какая у тебя фамилия?')
+    bot.register_next_step_handler(msg, process_surname_step, name, user_id)
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
+def process_surname_step(message, name, user_id):
+    surname = message.text
+    users[user_id] = {'name': name, 'surname': surname}
+    bot.reply_to(message, f'Спасибо, {name} {surname}!')
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+bot.polling()
