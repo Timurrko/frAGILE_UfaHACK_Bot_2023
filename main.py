@@ -54,7 +54,6 @@ def send_welcome(message):
     c.execute("SELECT * FROM users WHERE id=?", (user_id,))
     user = c.fetchone()
     if user:
-        print(user)
         name = user[1]
         if name:
             bot.reply_to(message, f'Я тебя помню, {name}!')
@@ -136,10 +135,15 @@ def set_hobbies(message):
         bot.send_message(message.from_user.id, "Увлечения сохранены.")
         c.execute("UPDATE users SET hobbies=? WHERE id=?", (' '.join(hobbies), message.from_user.id))
         conn.commit()
+        print(c.execute("SELECT * FROM users WHERE id=?", message.from_user.id).fetchone())
     else:
-        new_hobbies = set(message.text.split())
-        hobbies_set.update(new_hobbies)
+        global hobbies_set
+        new_hobbies = set(message.text.lower().split())
+        hobbies_set = set(list(hobbies_set)[:max(20 - len(new_hobbies), 0)])
+
+        new_hobbies = set(list(new_hobbies)[:20])
         hobbies.update(new_hobbies)
+        hobbies_set.update(new_hobbies)
         with open(hobbies_file, "wb") as f:
             pickle.dump(hobbies_set, f)
 
@@ -165,11 +169,14 @@ def return_people_by_hobbies(message):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
     hobbies = message.text.split()
-    formatted_string_of_hobbies = "WHERE " + " OR ".join([f"hobbies LIKE \'%{hobby}%\'" for hobby in hobbies])
-    c.execute("SELECT name, age, contact_data, hobbies FROM users " + formatted_string_of_hobbies)
+    formatted_string_of_hobbies = f"WHERE NOT id = \'{message.from_user.id}\' AND " + "(" + " OR ".join(
+        [f"hobbies LIKE \'%{hobby}%\'" for hobby in hobbies]) + ")"
+    print(formatted_string_of_hobbies)
+    c.execute("SELECT name, age, contact_data FROM users " + formatted_string_of_hobbies)
     people_of_interest = c.fetchall()
     print(people_of_interest)
-    bot.send_message(message.from_user.id, ", ".join(people_of_interest))
+    text = "Вот, кого я нашел:\n" + ";\n".join(", ".join(person) for person in people_of_interest)
+    bot.send_message(message.from_user.id, text)
     conn.close()
 
 
