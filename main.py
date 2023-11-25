@@ -29,6 +29,8 @@ conn.commit()
 message_queue = queue.Queue()
 
 
+
+
 def handle_messages():
     while True:
         message = message_queue.get()
@@ -53,13 +55,15 @@ def send_welcome(message):
     user_id = message.from_user.id
     c.execute("SELECT * FROM users WHERE id=?", (user_id,))
     user = c.fetchone()
-    if user:
-        name = user[1]
-        if name:
-            bot.reply_to(message, f'Я тебя помню, {name}!')
-        else:
-            bot.reply_to(message, f'Я тебя помню!')
-    else:
+    flag = True
+    try:
+        if "" not in user:
+            name = user[1]
+            if name:
+                bot.reply_to(message, f'Я тебя помню, {name}!')
+    except TypeError:
+        flag = False
+    if not flag:
         bot.reply_to(message, "Привет! Это MeetMe, я помогу тебе найти друзей по интересам. Давай я задам тебе "
                               "несколько вопросов")
         c.execute("INSERT INTO users VALUES (?, '', '', '', '')", (user_id,))
@@ -86,7 +90,7 @@ def process_user(message):
     elif not user[4]:
         markup = types.ReplyKeyboardMarkup(row_width=2)
         itembtns = [types.KeyboardButton(hobby) for hobby in hobbies_set]
-        itembtns.append(types.KeyboardButton("завершить"))
+        itembtns.append(types.KeyboardButton(""))
         markup.add(*itembtns)
         msg = bot.send_message(user_id,
                                "Чем ты увлекаешься? Выбери хобби из списка или введи свои #вот_так. Можешь ввести несколько через пробел. Как закончишь, нажми \"завершить\" в меню",
@@ -132,10 +136,11 @@ def set_hobbies(message):
     hobbies = c.fetchone()
     hobbies = set(hobbies[0].split())
     if message.text == "завершить":
-        bot.send_message(message.from_user.id, "Увлечения сохранены.")
+        bot.send_message(message.from_user.id, "Увлечения сохранены. Теперь для поиска друзей по интересам ты можешь "
+                                               "воспользоваться командой \"/search\"")
         c.execute("UPDATE users SET hobbies=? WHERE id=?", (' '.join(hobbies), message.from_user.id))
         conn.commit()
-        print(c.execute("SELECT * FROM users WHERE id=?", message.from_user.id).fetchone())
+        print(c.execute("SELECT * FROM users WHERE id=" + str(message.from_user.id)).fetchone())
     else:
         global hobbies_set
         new_hobbies = set(message.text.lower().split())
@@ -175,7 +180,10 @@ def return_people_by_hobbies(message):
     c.execute("SELECT name, age, contact_data FROM users " + formatted_string_of_hobbies)
     people_of_interest = c.fetchall()
     print(people_of_interest)
-    text = "Вот, кого я нашел:\n" + ";\n".join(", ".join(person) for person in people_of_interest)
+    if people_of_interest:
+        text = "Вот, кого я нашел:\n" + ";\n".join(", ".join(person) for person in people_of_interest)
+    else:
+        text = "Я никого не нашёл"
     bot.send_message(message.from_user.id, text)
     conn.close()
 
